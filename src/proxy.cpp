@@ -179,49 +179,54 @@ EllipticsProxy::~EllipticsProxy()
 }
 #endif /* HAVE_METABASE */
 
-LookupResult
-EllipticsProxy::parse_lookup(const ioremap::elliptics::lookup_result &l)
-{
-	LookupResult result;
-
-	struct dnet_cmd *cmd = l->command();
-	struct dnet_addr_attr *a = l->address_attribute();
-	struct dnet_file_info *info = l->file_info();
-	dnet_convert_file_info(info);
-
-	char hbuf[NI_MAXHOST];
-	memset(hbuf, 0, NI_MAXHOST);
-
-	if (getnameinfo((const sockaddr*)&a->addr, a->addr.addr_len, hbuf, sizeof (hbuf), NULL, 0, 0) != 0) {
-		throw std::runtime_error("can not make dns lookup");
-	}
-	result.hostname.assign(hbuf);
-
-	result.port = dnet_server_convert_port((struct sockaddr *)a->addr.addr, a->addr.addr_len);
-	result.group = cmd->id.group_id;
-
-	if (eblob_style_path_) {
-		result.path = l->file_path();
-		result.path = result.path.substr(result.path.find_last_of("/\\") + 1);
-		result.path = "/" + boost::lexical_cast<std::string>(result.port - base_port_) + '/'
-			+ result.path + ":" + boost::lexical_cast<std::string>(info->offset)
-			+ ":" +  boost::lexical_cast<std::string>(info->size);
-	} else {
-		//struct dnet_id id;
-		//elliptics_node_->transform(key.filename(), id);
-		//result.path = "/" + boost::lexical_cast<std::string>(port - base_port_) + '/' + hex_dir + '/' + id;
-	}
-
-	return result;
-}
-
 std::vector<LookupResult>
-EllipticsProxy::parse_lookup(const ioremap::elliptics::write_result &l)
+EllipticsProxy::parse_lookup(Key &key, std::string &l)
 {
 	std::vector<LookupResult> ret;
+	size_t size = l.size();
+	const size_t min_size = sizeof(struct dnet_addr) +
+				sizeof(struct dnet_cmd) +
+				sizeof(struct dnet_addr_attr) +
+				sizeof(struct dnet_file_info);
+	const char *data = (const char *)l.data();
 
-	for (size_t i = 0; i < l.size(); ++i)
-		ret.push_back(parse_lookup(l[0]));
+	while (size > min_size) {
+		LookupResult result;
+
+		struct dnet_addr *addr = (struct dnet_addr *)data;
+		struct dnet_cmd *cmd = (struct dnet_cmd *)(addr + 1);
+		struct dnet_addr_attr *a = (struct dnet_addr_attr *)(cmd + 1);
+		struct dnet_file_info *info = (struct dnet_file_info *)(a + 1);
+		dnet_convert_file_info(info);
+
+		char hbuf[NI_MAXHOST];
+		memset(hbuf, 0, NI_MAXHOST);
+
+		if (getnameinfo((const sockaddr*)&a->addr, a->addr.addr_len, hbuf, sizeof (hbuf), NULL, 0, 0) != 0) {
+			throw std::runtime_error("can not make dns lookup");
+		}
+		result.hostname.assign(hbuf);
+
+		result.port = dnet_server_convert_port((struct sockaddr *)a->addr.addr, a->addr.addr_len);
+		result.group = cmd->id.group_id;
+
+		if (eblob_style_path_) {
+			result.path = std::string((char *)(info + 1));
+			result.path = result.path.substr(result.path.find_last_of("/\\") + 1);
+			result.path = "/" + boost::lexical_cast<std::string>(result.port - base_port_) + '/' 
+				+ result.path + ":" + boost::lexical_cast<std::string>(info->offset)
+				+ ":" +  boost::lexical_cast<std::string>(info->size);
+		} else {
+			//struct dnet_id id;
+			//elliptics_node_->transform(key.filename(), id);
+			//result.path = "/" + boost::lexical_cast<std::string>(port - base_port_) + '/' + hex_dir + '/' + id;
+		}
+
+		ret.push_back(result);
+
+		data += min_size + info->flen;
+		size -= min_size + info->flen;
+	}
 
 	return ret;
 }
@@ -235,7 +240,7 @@ LookupResult EllipticsProxy::lookup_impl(Key &key, std::vector<int> &groups)
 	lgroups = getGroups(key, groups);
 	try {
 		elliptics_session.set_groups(lgroups);
-		lookup_result l;
+		std::string l;
 		if (key.byId()) {
 			struct dnet_id id = key.id().dnet_id();
 			l = elliptics_session.lookup(id);
@@ -243,7 +248,7 @@ LookupResult EllipticsProxy::lookup_impl(Key &key, std::vector<int> &groups)
 			l = elliptics_session.lookup(key.filename());
 		}
 
-		result = parse_lookup(l);
+		result = parse_lookup(key, l)[0];
 
 	}
 	catch (const std::exception &e) {
@@ -274,44 +279,50 @@ EllipticsProxy::read_impl(Key &key, uint64_t offset, uint64_t size,
 	elliptics_session.set_cflags(cflags);
 	elliptics_session.set_ioflags(ioflags);
 
-	ioremap::elliptics::data_pointer result;
+	std::string result;
 	ReadResult ret;
 
 	try {
 		elliptics_session.set_groups(lgroups);
 
 		if (latest)
-			result = elliptics_session.read_latest(key, offset, size)->file();
+			result = elliptics_session.read_latest(key, offset, size);
 		else
-			result = elliptics_session.read_data(key, offset, size)->file();
+			result = elliptics_session.read_data_wait(key, offset, size);
 
 		if (embeded) {
-			while (result.size()) {
-				if (result.size() < sizeof(struct dnet_common_embed)) {
-					std::ostringstream str;
-					str << key.str() << ": offset: " << result.offset() << ", size: " << result.size() << ": invalid size";
-					throw std::runtime_error(str.str());
-				}
+			size_t size = result.size();
+			size_t offset = 0;
 
-				struct dnet_common_embed *e = result.data<struct dnet_common_embed>();
+			while (size) {
+				struct dnet_common_embed *e = (struct dnet_common_embed *)(result.data() + offset);
 
 				dnet_common_convert_embedded(e);
 
-				result = result.skip<struct dnet_common_embed>();
+				if (size < sizeof(struct dnet_common_embed)) {
+					std::ostringstream str;
+					str << key.str() << ": offset: " << offset << ", size: " << size << ": invalid size";
+					throw std::runtime_error(str.str());
+				}
 
-				if (result.size() < e->size + sizeof (struct dnet_common_embed)) {
+				offset += sizeof(struct dnet_common_embed);
+				size -= sizeof(struct dnet_common_embed);
+
+				if (size < e->size + sizeof (struct dnet_common_embed)) {
 					break;
 				}
 
 				if (e->type == DNET_PROXY_EMBED_DATA) {
+					size = e->size;
 					break;
 				}
 
-				result = result.skip(e->size);
+				offset += e->size;
+				size -= e->size;
 			}
-			ret.data = result.to_string();
+			ret.data = result.substr(offset, std::string::npos);
 		} else {
-			ret.data = result.to_string();
+			ret.data = result;
 		}
 
 	}
@@ -394,7 +405,7 @@ std::vector<LookupResult> EllipticsProxy::write_impl(Key &key, std::string &data
 		}
 
 		int result = 0;
-		ioremap::elliptics::write_result lookup;
+		std::string lookup;
 
 		struct dnet_id id;
 		memset(&id, 0, sizeof(id));
@@ -408,7 +419,7 @@ std::vector<LookupResult> EllipticsProxy::write_impl(Key &key, std::string &data
 
 		try {
 			if (key.byId()) {
-				lookup = elliptics_session.write_data(id, content, offset);
+				lookup = elliptics_session.write_data_wait(id, content, offset);
 			} else {
 				if (ioflags && DNET_IO_FLAGS_PREPARE) {
 					lookup = elliptics_session.write_prepare(key, content, offset, size);
@@ -420,7 +431,7 @@ std::vector<LookupResult> EllipticsProxy::write_impl(Key &key, std::string &data
 					if (chunked) {
 						lookup = elliptics_session.write_prepare(key, content, offset, total_size);
 					} else {
-						lookup = elliptics_session.write_data(key, content, offset);
+						lookup = elliptics_session.write_data_wait(key, content, offset);
 					}
 				}
 			}
@@ -455,9 +466,9 @@ std::vector<LookupResult> EllipticsProxy::write_impl(Key &key, std::string &data
 
 		std::vector<int> upload_group;
 		while (!ret.size() || ret.size() < replication_count) {
-			std::vector<LookupResult> tmp = parse_lookup(lookup);
+			std::vector<LookupResult> tmp = parse_lookup(key, lookup);
 			ret.insert(ret.end(), tmp.begin(), tmp.end());
-			lookup = ioremap::elliptics::write_result();
+			lookup.clear();
 
 			if (temp_groups.size() == 0 || (ret.size() && ret.size() >= replication_count) || use_metabase ) {
 				break;
@@ -472,7 +483,7 @@ std::vector<LookupResult> EllipticsProxy::write_impl(Key &key, std::string &data
 					if (chunked) {
 						lookup = elliptics_session.write_plain(key, content, offset);
 					} else {
-						lookup = elliptics_session.write_data(key, content, offset);
+						lookup = elliptics_session.write_data_wait(key, content, offset);
 					}
 				
 					temp_groups.erase(it);
@@ -582,7 +593,7 @@ std::vector<std::string> EllipticsProxy::range_get_impl(Key &from, Key &to, uint
 
 		for (size_t i = 0; i < lgroups.size(); ++i) {
 			try {
-				ret = elliptics_session.read_data_range_raw(io, lgroups[i]);
+				ret = elliptics_session.read_data_range(io, lgroups[i]);
 				if (ret.size())
 					break;
 			} catch (...) {
@@ -674,6 +685,7 @@ EllipticsProxy::bulk_read_impl(std::vector<Key> &keys, uint64_t cflags, std::vec
 	session elliptics_session(*elliptics_node_);
 	std::vector<int> lgroups = getGroups(keys[0], groups);
 
+	std::vector<std::string> result;
 	std::map<ID, Key> keys_transformed;
 
 	try {
@@ -696,16 +708,29 @@ EllipticsProxy::bulk_read_impl(std::vector<Key> &keys, uint64_t cflags, std::vec
                         memcpy(io.id, tmp.id().dnet_id().id, sizeof(io.id));
                         ios.push_back(io);
                         keys_transformed.insert(std::make_pair(tmp.id(), *it));
-		}
+                }
 
-		bulk_read_result result = elliptics_session.bulk_read(ios);
+		result = elliptics_session.bulk_read(ios);
 
-		for (size_t i = 0; i < result.size(); ++i) {
-			read_result_entry entry = result[i];
+                for (std::vector<std::string>::iterator it = result.begin();
+                                                 it != result.end(); it++) {
 
-			ID ell_id(entry.command()->id);
+                        if (it->size() < DNET_ID_SIZE + 8)
+                                throw std::runtime_error("Too small record came from bulk_read");
+
+                        struct dnet_id id;
+                        uint64_t *size;
+
+                        memset(&id, 0, sizeof(id));
+                        memcpy(id.id, it->data(), DNET_ID_SIZE);
+                        size = (uint64_t *)(it->data() + DNET_ID_SIZE);
+
+                        if (*size != (it->size() - DNET_ID_SIZE - 8))
+                                throw std::runtime_error("Too small record came from bulk_read");
+
+                        ID ell_id(id);
 	                ReadResult tmp;
-			tmp.data = entry.file().to_string();
+                        tmp.data.assign(it->data() + DNET_ID_SIZE + 8, *size);
 
                         ret.insert(std::make_pair(keys_transformed[ell_id], tmp));
                 }
