@@ -498,6 +498,11 @@ std::vector<LookupResult> EllipticsProxy::write_impl(Key &key, std::string &data
 
 		try {
 			if (chunked) {
+                                upload_group.resize(0);
+                                for (auto it = ret.begin(); it != ret.end(); ++it) {
+                                    upload_group.push_back(it->group);
+                                }
+
 				elliptics_session.set_groups(upload_group);
 				write_offset = offset + content.size();
 				while (chunk_offset < data.size()) {
@@ -523,6 +528,12 @@ std::vector<LookupResult> EllipticsProxy::write_impl(Key &key, std::string &data
 
 		if ((chunked && ret.size() == 0)
 		    || (replication_count != 0 && ret.size() < replication_count)) {
+
+                        upload_group.resize(0);
+                        for (auto it = ret.begin(); it != ret.end(); ++it) {
+                            upload_group.push_back(it->group);
+                        }
+
 			elliptics_session.set_groups(upload_group);
 			elliptics_session.remove(key.filename());
 			throw std::runtime_error("Not enough copies was written, or problems with chunked upload");
