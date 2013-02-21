@@ -541,7 +541,12 @@ std::vector<LookupResult> EllipticsProxy::write_impl(Key &key, std::string &data
 
 		if (replication_count == 0) {
 			upload_group = groups_;
-		}
+		} else {
+                        upload_group.resize(0);
+                        for (auto it = ret.begin(); it != ret.end(); ++it) {
+                            upload_group.push_back(it->group);
+                        }
+                }
 
 		struct timespec ts;
 		memset(&ts, 0, sizeof(ts));

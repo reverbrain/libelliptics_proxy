@@ -1,3 +1,9 @@
+libelliptics-proxy (0.1.4) unstable; urgency=low
+
+  * Upload metadata to correct groups
+
+ -- Anton Kortunov <toshik@yandex-team.ru>  Thu, 21 Feb 2013 13:10:25 +0400
+
 libelliptics-proxy (0.1.3) unstable; urgency=low
 
   * Depend on libcocaine-dealer1 (=0.9.4.2)
