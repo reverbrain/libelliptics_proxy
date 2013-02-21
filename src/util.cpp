@@ -160,11 +160,7 @@ bool Key::byId() const
 
 const std::string Key::filename() const
 {
-	if (!byId_) {
-		return filename_;
-	} else {
-		return std::string();
-	}
+        return filename_;
 }
 
 const int Key::column() const {
@@ -195,6 +191,7 @@ void Key::transform(ioremap::elliptics::session &sess)
         sess.transform(filename_, id);
 
         id_ = ID(id);
+        byId_ = true;
 }
 
 }

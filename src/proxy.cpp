@@ -547,10 +547,12 @@ std::vector<LookupResult> EllipticsProxy::write_impl(Key &key, std::string &data
                             upload_group.push_back(it->group);
                         }
                 }
+                key.transform(elliptics_session);
 
 		struct timespec ts;
 		memset(&ts, 0, sizeof(ts));
 
+std::cout << "Writing meta for key: " << key.str() << " with filename " << key.filename() << std::endl;
 		elliptics_session.set_cflags(0);
 		elliptics_session.write_metadata(key, key.filename(), upload_group, ts);
 		elliptics_session.set_cflags(ioflags);
