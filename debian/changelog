@@ -1,3 +1,9 @@
+libelliptics-proxy (0.1.6) unstable; urgency=low
+
+  * Reimplemented write method
+
+ -- Anton Kortunov <toshik@yandex-team.ru>  Wed, 03 Apr 2013 13:53:48 +0400
+
 libelliptics-proxy (0.1.5) unstable; urgency=low
 
   * Hack for write_metadata
