@@ -4,8 +4,40 @@
 
 using namespace elliptics;
 
+void test_write_impl () {
+	EllipticsProxy::config c;
+	c.groups.push_back(1);
+	c.groups.push_back(2);
+	c.groups.push_back(3);
+	c.replication_count = 3;
+	c.log_mask = 1;
+	c.remotes.push_back(EllipticsProxy::remote("derikon.dev.yandex.net", 1025, 2));
+	c.success_copies_num = elliptics::SUCCESS_COPIES_TYPE__ALL;
+	c.chunk_size = 1;
+
+	EllipticsProxy proxy(c);
+
+	sleep(1);
+
+	Key k (std::string ("test_key.txt"));
+	std::string data ("test_data");
+
+	try { proxy.remove(k); } catch (...) { std::cout << std::endl; }
+
+	auto wr = proxy.write(k, data);
+	std::cout << "written " << wr.size() << " copy(-ies)" << std::endl;
+	for (auto it = wr.begin (), end = wr.end(); it != end; ++it) {
+		std::cout << "\tgroup: " << it->group << "\tpath: " << it->hostname << ":" << it->port << it->path << std::endl;
+	}
+
+	auto rr = proxy.read(k);
+	std::cout << "Read: " << rr.data << std::endl;
+}
+
 int main(int argc, char* argv[])
 {
+	test_write_impl();
+	return 0;
 	EllipticsProxy::config c;
 	c.groups.push_back(1);
 	c.groups.push_back(2);
