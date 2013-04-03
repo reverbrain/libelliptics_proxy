@@ -47,6 +47,12 @@ enum metabase_type {
 	PROXY_META_MANDATORY
 };
 
+enum SUCCESS_COPIES_TYPE {
+SUCCESS_COPIES_TYPE__ANY = -1,
+SUCCESS_COPIES_TYPE__QUORUM = -2,
+SUCCESS_COPIES_TYPE__ALL = -3
+};
+
 #ifdef HAVE_METABASE
 
 struct MetabaseGroupWeightsRequest {
