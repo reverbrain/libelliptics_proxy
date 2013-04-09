@@ -36,19 +36,54 @@ void test_write_impl () {
 
 int main(int argc, char* argv[])
 {
-	test_write_impl();
-	return 0;
+	//test_write_impl();
+	//return 0;
 	EllipticsProxy::config c;
 	c.groups.push_back(1);
 	c.groups.push_back(2);
 	c.log_mask = 1;
-	c.cocaine_config = std::string("/home/toshik/cocaine/cocaine_config.json");
+	//c.cocaine_config = std::string("/home/toshik/cocaine/cocaine_config.json");
+	c.cocaine_config = std::string("/home/derikon/cocaine/cocaine_config.json");
 
-	c.remotes.push_back(EllipticsProxy::remote("elisto22f.dev.yandex.net", 1025));
+	//c.remotes.push_back(EllipticsProxy::remote("elisto22f.dev.yandex.net", 1025));
+	c.remotes.push_back(EllipticsProxy::remote("derikon.dev.yandex.net", 1025));
 
 	EllipticsProxy proxy(c);
 
 	sleep(1);
+
+	auto r1 = proxy.get_symmetric_groups();
+	std::cout << "get_symmetric_groups: " << std::endl;
+	std::cout << "size = " << r1.size() << std::endl;
+	for (size_t i = 0; i != r1.size(); ++i) {
+		std::cout << "\tsize = " << r1[i].size() << std::endl;
+		std::cout << "\t\t";
+		for (size_t j = 0; j != r1[i].size(); ++j) {
+			std::cout << r1[i][j] << ' ';
+		}
+		std::cout << std::endl;
+	}
+
+	auto r2 = proxy.get_bad_groups();
+	std::cout << "get_bad_groups: " << std::endl;
+	for (auto it = r2.begin(); it != r2.end(); ++it) {
+		std::cout << it->first << std::endl;
+		std::cout << "\tsize: " << it->second.size() << std::endl;
+		std::cout << "\t\t";
+		for (auto jt = it->second.begin(); jt != it->second.end(); ++jt) {
+			std::cout << *jt << ' ';
+		}
+		std::cout << std::endl;
+	}
+
+	auto r3 = proxy.get_all_groups();
+	std::cout << "get_all_groups: " << std::endl;
+	for (auto it = r3.begin(); it != r3.end(); ++it) {
+		std::cout << *it << ' ';
+	}
+	std::cout << std::endl;
+
+	return 0;
 	Key k(std::string("test"));
 
 	std::string data("test3");

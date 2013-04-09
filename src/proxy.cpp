@@ -16,6 +16,7 @@
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 
 #include <sstream>
+#include <iostream>
 
 #include <fcntl.h>
 #include <errno.h>
@@ -1668,7 +1669,101 @@ GroupInfoResponse EllipticsProxy::get_metabalancer_group_info_impl(int group)
 
 	return resp;
 }
+
+std::vector<std::vector<int> > EllipticsProxy::get_symmetric_groups() {
+	std::vector<std::vector<int> > res;
+	try {
+		cocaine::dealer::message_path_t path("mastermind", "get_symmetric_groups");
+
+		boost::shared_ptr<cocaine::dealer::response_t> future;
+		future = cocaine_dealer_->send_message(std::string(), path, cocaine_default_policy_);
+
+		cocaine::dealer::data_container chunk;
+		future->get(&chunk);
+
+		msgpack::unpacked unpacked;
+		msgpack::unpack(&unpacked, static_cast<const char*>(chunk.data()), chunk.size());
+
+		unpacked.get().convert(&res);
+		return res;
+
+	} catch (const msgpack::unpack_error &e) {
+		std::stringstream msg;
+		msg << "Error while unpacking message: " << e.what();
+		elliptics_log_->log(DNET_LOG_ERROR, msg.str().c_str());
+		throw;
+	} catch (const cocaine::dealer::dealer_error &e) {
+		std::stringstream msg;
+		msg << "Cocaine dealer error: " << e.what();
+		elliptics_log_->log(DNET_LOG_ERROR, msg.str().c_str());
+		throw;
+	} catch (const cocaine::dealer::internal_error &e) {
+		std::stringstream msg;
+		msg << "Cocaine internal error: " << e.what();
+		elliptics_log_->log(DNET_LOG_ERROR, msg.str().c_str());
+		throw;
+	}
+}
+
+std::map<int, std::vector<int> > EllipticsProxy::get_bad_groups() {
+	std::map<int, std::vector<int> > res;
+	try {
+		cocaine::dealer::message_path_t path("mastermind", "get_bad_groups");
+
+		boost::shared_ptr<cocaine::dealer::response_t> future;
+		future = cocaine_dealer_->send_message(std::string(), path, cocaine_default_policy_);
+
+		cocaine::dealer::data_container chunk;
+		future->get(&chunk);
+
+		msgpack::unpacked unpacked;
+		msgpack::unpack(&unpacked, static_cast<const char*>(chunk.data()), chunk.size());
+
+		unpacked.get().convert(&res);
+		return res;
+
+	} catch (const msgpack::unpack_error &e) {
+		std::stringstream msg;
+		msg << "Error while unpacking message: " << e.what();
+		elliptics_log_->log(DNET_LOG_ERROR, msg.str().c_str());
+		throw;
+	} catch (const cocaine::dealer::dealer_error &e) {
+		std::stringstream msg;
+		msg << "Cocaine dealer error: " << e.what();
+		elliptics_log_->log(DNET_LOG_ERROR, msg.str().c_str());
+		throw;
+	} catch (const cocaine::dealer::internal_error &e) {
+		std::stringstream msg;
+		msg << "Cocaine internal error: " << e.what();
+		elliptics_log_->log(DNET_LOG_ERROR, msg.str().c_str());
+		throw;
+	}
+}
+
+std::vector<int> EllipticsProxy::get_all_groups() {
+	std::vector<int> res;
+
+	{
+		std::vector<std::vector<int> > r1 = get_symmetric_groups();
+		for (auto it = r1.begin(); it != r1.end(); ++it) {
+			res.insert(res.end(), it->begin(), it->end());
+		}
+	}
+
+	{
+		std::map<int, std::vector<int> > r2 = get_bad_groups();
+		for (auto it = r2.begin(); it != r2.end(); ++it) {
+			res.insert(res.end(), it->second.begin(), it->second.end());
+		}
+	}
+
+	std::sort(res.begin(), res.end());
+	res.erase(std::unique(res.begin(), res.end()), res.end());
+
+	return res;
+}
 #endif /* HAVE_METABASE */
+
 /*
 #ifdef HAVE_METABASE
 std::vector<int> 
