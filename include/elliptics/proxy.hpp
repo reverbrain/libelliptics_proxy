@@ -400,6 +400,10 @@ public:
 	}
 #endif /* HAVE_METABASE */
 
+	std::vector<std::vector<int> > get_symmetric_groups();
+	std::map<int, std::vector<int> > get_bad_groups();
+	std::vector<int> get_all_groups();
+
 private:
 	LookupResult lookup_impl(Key &key, std::vector<int> &groups);
 
