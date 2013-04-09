@@ -1669,7 +1669,6 @@ GroupInfoResponse EllipticsProxy::get_metabalancer_group_info_impl(int group)
 
 	return resp;
 }
-#endif /* HAVE_METABASE */
 
 std::vector<std::vector<int> > EllipticsProxy::get_symmetric_groups() {
 	std::vector<std::vector<int> > res;
@@ -1763,6 +1762,7 @@ std::vector<int> EllipticsProxy::get_all_groups() {
 
 	return res;
 }
+#endif /* HAVE_METABASE */
 
 /*
 #ifdef HAVE_METABASE
