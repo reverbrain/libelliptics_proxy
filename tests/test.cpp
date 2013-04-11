@@ -67,10 +67,9 @@ int main(int argc, char* argv[])
 	auto r2 = proxy.get_bad_groups();
 	std::cout << "get_bad_groups: " << std::endl;
 	for (auto it = r2.begin(); it != r2.end(); ++it) {
-		std::cout << it->first << std::endl;
-		std::cout << "\tsize: " << it->second.size() << std::endl;
+		std::cout << "\tsize: " << it->size() << std::endl;
 		std::cout << "\t\t";
-		for (auto jt = it->second.begin(); jt != it->second.end(); ++jt) {
+		for (auto jt = it->begin(); jt != it->end(); ++jt) {
 			std::cout << *jt << ' ';
 		}
 		std::cout << std::endl;

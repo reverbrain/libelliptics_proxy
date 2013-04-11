@@ -1705,8 +1705,8 @@ std::vector<std::vector<int> > EllipticsProxy::get_symmetric_groups() {
 	}
 }
 
-std::map<int, std::vector<int> > EllipticsProxy::get_bad_groups() {
-	std::map<int, std::vector<int> > res;
+std::vector<std::vector<int> > EllipticsProxy::get_bad_groups() {
+	std::vector<std::vector<int> > res;
 	try {
 		cocaine::dealer::message_path_t path("mastermind", "get_bad_groups");
 
@@ -1751,9 +1751,9 @@ std::vector<int> EllipticsProxy::get_all_groups() {
 	}
 
 	{
-		std::map<int, std::vector<int> > r2 = get_bad_groups();
+		std::vector<std::vector<int> > r2 = get_bad_groups();
 		for (auto it = r2.begin(); it != r2.end(); ++it) {
-			res.insert(res.end(), it->second.begin(), it->second.end());
+			res.insert(res.end(), it->begin(), it->end());
 		}
 	}
 

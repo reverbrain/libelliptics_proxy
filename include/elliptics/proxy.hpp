@@ -400,7 +400,7 @@ public:
 	}
 
 	std::vector<std::vector<int> > get_symmetric_groups();
-	std::map<int, std::vector<int> > get_bad_groups();
+	std::vector<std::vector<int> > get_bad_groups();
 	std::vector<int> get_all_groups();
 #endif /* HAVE_METABASE */
 

@@ -1,3 +1,9 @@
+libelliptics-proxy (0.1.9) unstable; urgency=low
+
+  * Changed return value of get_bad_groups
+
+ -- Anton Kortunov <toshik@yandex-team.ru>  Thu, 11 Apr 2013 13:23:15 +0400
+
 libelliptics-proxy (0.1.8) unstable; urgency=low
 
   * Added methods get_symmetric_groups, get_bad_groups, get_all_groups
