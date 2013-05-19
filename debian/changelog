@@ -1,3 +1,9 @@
+libelliptics-proxy (0.1.9-1) unstable; urgency=low
+
+  * Compile with dealer = 0.9.19.1-2
+
+ -- Anton Kortunov <toshik@yandex-team.ru>  Mon, 20 May 2013 01:43:18 +0400
+
 libelliptics-proxy (0.1.9) unstable; urgency=low
 
   * Changed return value of get_bad_groups
