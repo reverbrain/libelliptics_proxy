@@ -1676,7 +1676,7 @@ std::vector<std::vector<int> > EllipticsProxy::get_symmetric_groups() {
 		cocaine::dealer::message_path_t path("mastermind", "get_symmetric_groups");
 
 		boost::shared_ptr<cocaine::dealer::response_t> future;
-		future = cocaine_dealer_->send_message(std::string(), path, cocaine_default_policy_);
+		future = cocaine_dealer_->send_message(0, path, cocaine_default_policy_);
 
 		cocaine::dealer::data_container chunk;
 		future->get(&chunk);
@@ -1711,7 +1711,7 @@ std::vector<std::vector<int> > EllipticsProxy::get_bad_groups() {
 		cocaine::dealer::message_path_t path("mastermind", "get_bad_groups");
 
 		boost::shared_ptr<cocaine::dealer::response_t> future;
-		future = cocaine_dealer_->send_message(std::string(), path, cocaine_default_policy_);
+		future = cocaine_dealer_->send_message(0, path, cocaine_default_policy_);
 
 		cocaine::dealer::data_container chunk;
 		future->get(&chunk);
