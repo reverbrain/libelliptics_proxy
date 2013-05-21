@@ -387,7 +387,7 @@ public:
 	BOOST_PARAMETER_MEMBER_FUNCTION(
 		(std::map<Key, std::vector<LookupResult> >), bulk_write, tag,
 		(required
-			 (keys, (std::vector<key_t>))
+			 (keys, (std::vector<Key>))
 			 (data, (std::vector<std::string>))
 		 )
 		(optional

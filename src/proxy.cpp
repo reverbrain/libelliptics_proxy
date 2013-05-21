@@ -913,7 +913,7 @@ std::map<Key, std::vector<LookupResult> > EllipticsProxy::bulk_write_impl(std::v
 		if (it != end) {
 			for (auto it = res_groups.begin(), end = res_groups.end(); it != end; ++it) {
 				elliptics_session.set_groups(it->second);
-				elliptics_session.remove(it->first.filename());
+				elliptics_session.remove(it->first);
 			}
 			throw std::runtime_error("Not enough copies was written");
 		}
