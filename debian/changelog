@@ -1,3 +1,9 @@
+libelliptics-proxy (0.3.0) unstable; urgency=low
+
+  * Added bulk_write
+
+ -- Anton Kortunov <toshik@yandex-team.ru>  Tue, 21 May 2013 19:06:34 +0400
+
 libelliptics-proxy (0.1.10) unstable; urgency=low
 
   * Pass 0 instead of std::string() to cocaine dealer's send_message()
