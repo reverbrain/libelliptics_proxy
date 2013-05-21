@@ -167,6 +167,7 @@ public:
 	uint16_t port;
 	std::string path;
 	int group;
+	struct dnet_id id;
 };
 
 class embed {
@@ -201,6 +202,7 @@ BOOST_PARAMETER_NAME(count)
 BOOST_PARAMETER_NAME(embeds)
 BOOST_PARAMETER_NAME(embeded)
 BOOST_PARAMETER_NAME(replication_count)
+BOOST_PARAMETER_NAME(success_copies_num)
 BOOST_PARAMETER_NAME(limit_start)
 BOOST_PARAMETER_NAME(limit_num)
 
@@ -382,6 +384,22 @@ public:
 		return lookup_addr_impl(key, groups);
 	}
 
+	BOOST_PARAMETER_MEMBER_FUNCTION(
+		(std::map<Key, std::vector<LookupResult> >), bulk_write, tag,
+		(required
+			 (keys, (std::vector<key_t>))
+			 (data, (std::vector<std::string>))
+		 )
+		(optional
+			 (cflags, (uint64_t), 0)
+			 (groups, (const std::vector<int>), std::vector<int>())
+			 (success_copies_num, (int), 0)
+		 )
+		)
+	{
+		return bulk_write_impl(keys, data, cflags, groups, success_copies_num);
+	}
+
 #ifdef HAVE_METABASE
 	BOOST_PARAMETER_MEMBER_FUNCTION(
 		(std::vector<int>), get_metabalancer_groups, tag,
@@ -423,6 +441,9 @@ private:
 	std::map<Key, ReadResult> bulk_read_impl(std::vector<Key> &keys, uint64_t cflags, std::vector<int> &groups);
 
         std::vector<EllipticsProxy::remote> lookup_addr_impl(Key &key, std::vector<int> &groups);
+
+	std::map<Key, std::vector<LookupResult> > bulk_write_impl(std::vector<Key> &keys, std::vector<std::string> &data, uint64_t cflags,
+																   std::vector<int> &groups, int success_copies_num);
 
 
 	std::vector<LookupResult> parse_lookup(Key &key, std::string &l);
