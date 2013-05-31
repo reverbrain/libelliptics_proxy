@@ -126,7 +126,7 @@ public:
         bool operator<(const ID &id2) const;
 
 	std::string str() const;
-	std::string dump(unsigned int len = 6) const;
+	std::string dump(unsigned int len = DNET_ID_SIZE) const;
 	struct dnet_id dnet_id() const;
 
 	int group() const;

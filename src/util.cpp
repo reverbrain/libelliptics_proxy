@@ -85,7 +85,7 @@ bool ID::operator<(const ID &id2) const
 
 std::string ID::str() const
 {
-	return dump();
+	return dump(6);
 }
 
 std::string ID::dump(unsigned int len) const
