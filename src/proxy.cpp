@@ -383,6 +383,103 @@ LookupResult EllipticsProxy::lookup_impl(Key &key, std::vector<int> &groups)
 	return result;
 }
 
+namespace {
+bool compare_mtimes(const std::pair<int, dnet_time> &p1, const std::pair<int, dnet_time> &p2)
+{
+	if (p1.second.tsec == p2.second.tsec) {
+		return p1.second.tnsec > p2.second.tnsec;
+	}
+
+	return p1.second.tsec > p2.second.tsec;
+}
+
+std::vector<std::pair<int, dnet_time> >
+parse_latest(const std::string &data)
+{
+	const char *ptr = data.data();
+	size_t size = data.size();
+
+	std::vector<std::pair<int, dnet_time> > mtimes;
+
+	while (size > 0) {
+		if (size < (sizeof(dnet_addr) + sizeof(struct dnet_cmd)))
+			throw std::logic_error("Data size is too low");
+
+		ptr += sizeof(dnet_addr);
+		size -= sizeof(dnet_addr);
+
+		struct dnet_cmd *cmd = (struct dnet_cmd *)ptr;
+		if (cmd->size == 0) {
+			ptr += sizeof(dnet_cmd);
+			size -= sizeof(dnet_cmd);
+			continue;
+		}
+
+		if (cmd->size < sizeof(struct dnet_addr_attr) + sizeof(struct dnet_file_info))
+			throw std::logic_error("CMD size is too low");
+
+		struct dnet_addr_attr *a;
+		struct dnet_file_info *fi;
+
+		a = (struct dnet_addr_attr *)(cmd + 1);
+		fi = (struct dnet_file_info *)(a + 1);
+
+		dnet_time mtime = {fi->mtime.tsec, fi->mtime.tnsec};
+		int group_id = cmd->id.group_id;
+		mtimes.push_back(std::make_pair(group_id, mtime));
+
+		ptr += sizeof(struct dnet_cmd) + cmd->size;
+		size -= sizeof(struct dnet_cmd) + cmd->size;
+	}
+
+	std::sort(mtimes.begin(), mtimes.end(), compare_mtimes);
+
+	if (mtimes.size() > 1) {
+		auto it = std::find_if(mtimes.begin() + 1, mtimes.end(), std::bind(compare_mtimes, *mtimes.begin(), std::placeholders::_1));
+		mtimes.erase(it, mtimes.end());
+	}
+
+	
+	return mtimes;
+}
+}
+
+std::vector<std::pair<int, dnet_time> >
+EllipticsProxy::prepare_latest_impl(Key &key, std::vector<int> &groups)
+{
+	session elliptics_session(*elliptics_node_);
+	std::vector<int> lgroups = getGroups(key, groups);
+	std::string res;
+
+	elliptics_session.set_cflags(DNET_ATTR_META_TIMES);
+
+	try {
+		key.transform(elliptics_session);
+
+		callback_all c;
+		dnet_id raw = key.id().dnet_id();
+		int count = 0;
+		std::vector<int> group(1, 0);
+
+		for (auto g = lgroups.begin(); g != lgroups.end(); ++g) {
+			group[0] = *g;
+			elliptics_session.set_groups(group);
+			raw.group_id = *g;
+
+			try {
+				elliptics_session.lookup(raw, c);
+			} catch (...) {}
+			count++;
+		}
+
+		res = c.wait(count);
+	} catch (std::exception &e) {
+		std::cerr << "Got exception " << e.what() << std::endl;
+	}
+
+	return parse_latest(res);
+}
+
 ReadResult
 EllipticsProxy::read_impl(Key &key, uint64_t offset, uint64_t size,
 				uint64_t cflags, uint64_t ioflags, std::vector<int> &groups,
@@ -1861,6 +1958,13 @@ std::vector<int> EllipticsProxy::get_all_groups() {
 	return res;
 }
 #endif /* HAVE_METABASE */
+
+void
+EllipticsProxy::transform(Key &key)
+{
+	session elliptics_session(*elliptics_node_);
+	key.transform(elliptics_session);
+}
 
 /*
 #ifdef HAVE_METABASE

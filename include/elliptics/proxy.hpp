@@ -287,6 +287,19 @@ public:
 	}
 
 	BOOST_PARAMETER_MEMBER_FUNCTION(
+		(std::vector<std::pair<int, dnet_time> >), prepare_latest, tag,
+		(required
+			(key, (Key))
+		)
+		(optional
+			(groups, (const std::vector<int>), std::vector<int>())
+		)
+	)
+	{
+		return prepare_latest_impl(key, groups);
+	}
+
+	BOOST_PARAMETER_MEMBER_FUNCTION(
 		(std::vector<LookupResult>), write, tag,
 		(required
 			(key, (Key))
@@ -422,8 +435,12 @@ public:
 	std::vector<int> get_all_groups();
 #endif /* HAVE_METABASE */
 
+	void transform(Key &key);
+
 private:
 	LookupResult lookup_impl(Key &key, std::vector<int> &groups);
+
+	std::vector<std::pair<int, dnet_time> > prepare_latest_impl(Key &key, std::vector<int> &groups);
 
 	std::vector<LookupResult> write_impl(Key &key, std::string &data, uint64_t offset, uint64_t size,
 				uint64_t cflags, uint64_t ioflags, std::vector<int> &groups,

@@ -8,7 +8,7 @@ void test_write_impl () {
 	EllipticsProxy::config c;
 	c.groups.push_back(1);
 	c.groups.push_back(2);
-	c.groups.push_back(3);
+	c.groups.push_back(4);
 	c.replication_count = 3;
 	c.log_mask = 1;
 	c.remotes.push_back(EllipticsProxy::remote("derikon.dev.yandex.net", 1025, 2));
@@ -41,16 +41,37 @@ int main(int argc, char* argv[])
 	EllipticsProxy::config c;
 	c.groups.push_back(1);
 	c.groups.push_back(2);
-	c.log_mask = 1;
+	c.groups.push_back(4);
+	c.log_mask = 5;
 	//c.cocaine_config = std::string("/home/toshik/cocaine/cocaine_config.json");
-	c.cocaine_config = std::string("/home/derikon/cocaine/cocaine_config.json");
+	//c.cocaine_config = std::string("/home/derikon/cocaine/cocaine_config.json");
 
-	//c.remotes.push_back(EllipticsProxy::remote("elisto22f.dev.yandex.net", 1025));
-	c.remotes.push_back(EllipticsProxy::remote("derikon.dev.yandex.net", 1025));
+	c.remotes.push_back(EllipticsProxy::remote("elisto22f.dev.yandex.net", 1025));
+	//c.remotes.push_back(EllipticsProxy::remote("derikon.dev.yandex.net", 1025));
 
 	EllipticsProxy proxy(c);
 
 	sleep(1);
+
+	std::vector<Key> keys = { Key("test1"), Key("test2") };
+	std::vector<std::string> data = { "data for test1", "data for test2" };
+
+	Key test("test");
+	proxy.transform(test);
+	std::cerr << test.id().dump() << std::endl;
+
+	auto res = proxy.prepare_latest(Key("test"));
+	for (auto it = res.begin(); it != res.end(); it++) {
+		std::cerr << "Group " << it->first << " with mtime " << it->second.tsec << std::endl;
+	}
+#if 0
+	auto res = proxy.bulk_write(keys, data);
+	
+	std::cout << "Got " << res.size() << " results" << std::endl;
+	for (auto it = res.begin(); it != res.end(); ++it) {
+		std::cout << it->first.str() << std::endl;
+	}
+	std::cout << "copies for test1: " << res[Key("test1")].size() << std::endl;
 
 	auto r1 = proxy.get_symmetric_groups();
 	std::cout << "get_symmetric_groups: " << std::endl;
@@ -144,10 +165,11 @@ int main(int argc, char* argv[])
 		std::cout << "lookup path: " << l1.hostname << ":" << l1.port << l1.path << std::endl;
 	}
 
-	ReadResult res = proxy.read(k);
+	//ReadResult res = proxy.read(k);
 
-	std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!" << res.data << std::endl;
+	//std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!" << res.data << std::endl;
 
+#endif
 	return 0;
 }
 
