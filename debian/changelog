@@ -1,3 +1,10 @@
+libelliptics-proxy (0.3.1) unstable; urgency=low
+
+  * Set default dump len to DNET_ID_SIZE in id.dump()
+  * Added prepare_latest and transform methods
+
+ -- Anton Kortunov <toshik@yandex-team.ru>  Fri, 31 May 2013 21:44:27 +0400
+
 libelliptics-proxy (0.3.0) unstable; urgency=low
 
   * Added bulk_write
