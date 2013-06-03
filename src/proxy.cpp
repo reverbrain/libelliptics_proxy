@@ -456,7 +456,7 @@ EllipticsProxy::prepare_latest_impl(Key &key, std::vector<int> &groups)
 	try {
 		key.transform(elliptics_session);
 
-		callback_all c;
+		callback_any c;
 		dnet_id raw = key.id().dnet_id();
 		int count = 0;
 		std::vector<int> group(1, 0);

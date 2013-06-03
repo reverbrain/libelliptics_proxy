@@ -1,3 +1,9 @@
+libelliptics-proxy (0.3.2) unstable; urgency=low
+
+  * Changed callback type in prepare_latest
+
+ -- Anton Kortunov <toshik@yandex-team.ru>  Mon, 03 Jun 2013 15:17:48 +0400
+
 libelliptics-proxy (0.3.1) unstable; urgency=low
 
   * Set default dump len to DNET_ID_SIZE in id.dump()
