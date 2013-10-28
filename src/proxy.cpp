@@ -34,6 +34,7 @@
 
 #include "boost_threaded.hpp"
 #include "curl_wrapper.hpp"
+#include "logger.hpp"
 
 namespace {
 size_t uploads_need(size_t success_copies_num, size_t replication_count) {
@@ -271,10 +272,15 @@ EllipticsProxy::EllipticsProxy(const EllipticsProxy::config &c) :
 		}
 	}
 #ifdef HAVE_METABASE
+	std::shared_ptr<cocaine::framework::logger_t> mastermind_logger = c.mastermind_logger;
+	if (!mastermind_logger) {
+		mastermind_logger = std::make_shared<cocaine_logger_t>(*elliptics_log_);
+	}
+
 	mastermind_ = std::make_shared<elliptics::mastermind_t>(
 		c.mastermind_host
 		, c.mastermind_port
-		, c.mastermind_logger
+		, mastermind_logger
 		, c.mastermind_group_info_update_period
 		);
 #endif /* HAVE_METABASE */
