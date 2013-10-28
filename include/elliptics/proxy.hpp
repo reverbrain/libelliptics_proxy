@@ -263,7 +263,6 @@ public:
 		std::string            mastermind_host;
 		uint16_t               mastermind_port;
 		std::shared_ptr<cocaine::framework::logger_t> mastermind_logger;
-		int                    mastermind_group_info_update_period;
 #endif /* HAVE_METABASE */
 	};
 

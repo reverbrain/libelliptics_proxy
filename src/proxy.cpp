@@ -281,7 +281,7 @@ EllipticsProxy::EllipticsProxy(const EllipticsProxy::config &c) :
 		c.mastermind_host
 		, c.mastermind_port
 		, mastermind_logger
-		, c.mastermind_group_info_update_period
+		, c.group_weights_refresh_period
 		);
 #endif /* HAVE_METABASE */
 }
