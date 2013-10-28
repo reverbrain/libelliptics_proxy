@@ -1,3 +1,9 @@
+libelliptics-proxy (0.3.4-cocaine10) lucid; urgency=low
+
+  * Using libmastermind instead of cocaine-dealer
+
+ -- Artem Sokolov <derikon@yandex-team.ru>  Mon, 28 Oct 2013 17:56:27 +0400
+
 libelliptics-proxy (0.3.3) unstable; urgency=low
 
   * Updated depends on elliptics
