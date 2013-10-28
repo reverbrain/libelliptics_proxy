@@ -19,22 +19,11 @@ find_package(Boost COMPONENTS system thread REQUIRED)
 set(REQUIRED_LIBRARIES
                       elliptics_cpp
                       curl
+                      mastermind
                       ${Boost_SYSTEM_LIBRARY}
                       ${Boost_THREAD_LIBRARY})
 IF(WITH_METABASE)
     SET(HAVE_METABASE true)
-    FIND_LIBRARY(DEALER NAMES cocaine-dealer)
-
-    IF(${DEALER} STREQUAL "DEALER-NOTFOUND")
-        SET(HAVE_METABASE false)
-    ENDIF()
-
-    IF(HAVE_METABASE)
-        SET(REQUIRED_LIBRARIES 
-			${REQUIRED_LIBRARIES}
-			${DEALER})
-    ENDIF()
-message("Metabase: ${HAVE_METABASE} ${REQUIRED_LIBRARIES}")
 ENDIF()
 
 CONFIGURE_FILE(

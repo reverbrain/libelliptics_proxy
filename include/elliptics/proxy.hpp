@@ -26,7 +26,8 @@
 #include <vector>
 
 #ifdef HAVE_METABASE
-#include <cocaine/dealer/dealer.hpp>
+#include <cocaine/framework/logging.hpp>
+#include <elliptics/mastermind.hpp>
 #endif /* HAVE_METABASE */
 
 #include <boost/shared_ptr.hpp>
@@ -258,6 +259,11 @@ public:
 
 		std::string            cocaine_config;
 		int                    group_weights_refresh_period;
+
+		std::string            mastermind_host;
+		uint16_t               mastermind_port;
+		std::shared_ptr<cocaine::framework::logger_t> mastermind_logger;
+		int                    mastermind_group_info_update_period;
 #endif /* HAVE_METABASE */
 	};
 
@@ -268,9 +274,6 @@ private:
 
 public:
 	EllipticsProxy(const EllipticsProxy::config &c);
-#ifdef HAVE_METABASE
-	virtual ~EllipticsProxy();
-#endif //HAVE_METABASE
 
 public:
 	BOOST_PARAMETER_MEMBER_FUNCTION(
@@ -430,7 +433,7 @@ public:
 		return get_metabalancer_group_info_impl(group);
 	}
 
-	std::vector<std::vector<int> > get_symmetric_groups();
+	std::map<int, std::vector<int> > get_symmetric_groups();
 	std::vector<std::vector<int> > get_bad_groups();
 	std::vector<int> get_all_groups();
 #endif /* HAVE_METABASE */
@@ -508,18 +511,10 @@ private:
 	bool                                        eblob_style_path_;
 
 #ifdef HAVE_METABASE
-	std::auto_ptr<cocaine::dealer::dealer_t>    cocaine_dealer_;
-	cocaine::dealer::message_policy_t           cocaine_default_policy_;
-	int                                         metabase_timeout_;
 	int                                         metabase_usage_;
-	uint64_t                                    metabase_current_stamp_;
-
 	std::string                                 metabase_write_addr_;
 	std::string                                 metabase_read_addr_;
-
-	std::auto_ptr<group_weights_cache_interface> weight_cache_;
-	const int                                   group_weights_update_period_;
-	boost::thread                               weight_cache_update_thread_;
+	std::shared_ptr<elliptics::mastermind_t> mastermind_;
 #endif /* HAVE_METABASE */
 };
 
