@@ -76,17 +76,6 @@ struct MetabaseGroupWeightsResponse {
     MSGPACK_DEFINE(info)
 };
 
-class group_weights_cache_interface {
-public:
-    virtual ~group_weights_cache_interface() {};
-
-    virtual bool update(MetabaseGroupWeightsResponse &resp) = 0;
-    virtual std::vector<int> choose(uint64_t count) = 0;
-    virtual bool initialized() = 0;
-};
-
-std::auto_ptr<group_weights_cache_interface> get_group_weighs_cache();
-
 struct MetabaseRequest {
 	int		groups_num;
 	uint64_t	stamp;
