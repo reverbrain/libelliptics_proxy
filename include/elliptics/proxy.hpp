@@ -249,8 +249,7 @@ public:
 		std::string            cocaine_config;
 		int                    group_weights_refresh_period;
 
-		std::string            mastermind_host;
-		uint16_t               mastermind_port;
+		elliptics::mastermind_t::remotes_t mastermind_remotes;
 		std::shared_ptr<cocaine::framework::logger_t> mastermind_logger;
 #endif /* HAVE_METABASE */
 	};

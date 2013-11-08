@@ -278,8 +278,7 @@ EllipticsProxy::EllipticsProxy(const EllipticsProxy::config &c) :
 	}
 
 	mastermind_ = std::make_shared<elliptics::mastermind_t>(
-		c.mastermind_host
-		, c.mastermind_port
+		c.mastermind_remotes
 		, mastermind_logger
 		, c.group_weights_refresh_period
 		);
