@@ -463,7 +463,7 @@ EllipticsProxy::prepare_latest_impl(Key &key, std::vector<int> &groups)
 			count++;
 		}
 
-		res = c.wait(count);
+		res = c.wait(count, 3);
 	} catch (std::exception &e) {
 		std::cerr << "Got exception " << e.what() << std::endl;
 	}
