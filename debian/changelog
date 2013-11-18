@@ -1,4 +1,4 @@
-libelliptics-proxy (0.3.6-cocaine10ubuntu1) lucid; urgency=low
+libelliptics-proxy (0.3.6-cocaine10) lucid; urgency=low
 
   * Hotfix: use timeouts for waiting of callbacks
 
