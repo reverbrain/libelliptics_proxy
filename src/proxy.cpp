@@ -28,6 +28,9 @@
 #include <boost/lexical_cast.hpp>
 #include <boost/tokenizer.hpp>
 #include <boost/scoped_array.hpp>
+#include <boost/intrusive_ptr.hpp>
+#include <boost/thread/mutex.hpp>
+#include <boost/detail/atomic_count.hpp>
 
 #include <elliptics/proxy.hpp>
 #include <msgpack.hpp>
@@ -385,43 +388,8 @@ bool compare_mtimes(const std::pair<int, dnet_time> &p1, const std::pair<int, dn
 }
 
 std::vector<std::pair<int, dnet_time> >
-parse_latest(const std::string &data)
+parse_latest(std::vector<std::pair<int, dnet_time> > &mtimes)
 {
-	const char *ptr = data.data();
-	size_t size = data.size();
-
-	std::vector<std::pair<int, dnet_time> > mtimes;
-
-	while (size > 0) {
-		if (size < (sizeof(dnet_addr) + sizeof(struct dnet_cmd)))
-			throw std::logic_error("Data size is too low");
-
-		ptr += sizeof(dnet_addr);
-		size -= sizeof(dnet_addr);
-
-		struct dnet_cmd *cmd = (struct dnet_cmd *)ptr;
-		if (cmd->size == 0) {
-			ptr += sizeof(dnet_cmd);
-			size -= sizeof(dnet_cmd);
-			continue;
-		}
-
-		if (cmd->size < sizeof(struct dnet_addr_attr) + sizeof(struct dnet_file_info))
-			throw std::logic_error("CMD size is too low");
-
-		struct dnet_addr_attr *a;
-		struct dnet_file_info *fi;
-
-		a = (struct dnet_addr_attr *)(cmd + 1);
-		fi = (struct dnet_file_info *)(a + 1);
-
-		dnet_time mtime = {fi->mtime.tsec, fi->mtime.tnsec};
-		int group_id = cmd->id.group_id;
-		mtimes.push_back(std::make_pair(group_id, mtime));
-
-		ptr += sizeof(struct dnet_cmd) + cmd->size;
-		size -= sizeof(struct dnet_cmd) + cmd->size;
-	}
 
 	std::sort(mtimes.begin(), mtimes.end(), compare_mtimes);
 
@@ -430,9 +398,96 @@ parse_latest(const std::string &data)
 		mtimes.erase(it, mtimes.end());
 	}
 
-	
 	return mtimes;
 }
+
+struct dnet_read_latest_ctl {
+
+	dnet_read_latest_ctl(Key &key) : key_(key), use_count_(0) {};
+
+	Key								key_;
+	boost::detail::atomic_count		use_count_;
+	boost::mutex					mutex_;
+	boost::condition_variable		cond_;
+	std::vector<std::pair<int, dnet_time> > mtimes;
+	std::vector<int>				statuses_;
+
+	inline friend void intrusive_ptr_add_ref(dnet_read_latest_ctl *p)
+    {
+		++p->use_count_;
+	}
+
+	inline friend void intrusive_ptr_release(dnet_read_latest_ctl *p)
+	{
+		if(--p->use_count_ == 0) delete p;
+	}
+
+	std::vector<std::pair<int, dnet_time> > wait(size_t num, int wait_ts) {
+		boost::system_time const timeout=boost::get_system_time() + boost::posix_time::seconds(wait_ts);
+
+		boost::mutex::scoped_lock lock(mutex_);
+		while (num != statuses_.size()) {
+			if (!cond_.timed_wait(lock, timeout)) {
+				if (mtimes.empty()) {
+					throw timeout_error("TIMEOUT prepare_latest for key " + key_.str());
+				}
+				return mtimes;
+			}
+		}
+
+		if (mtimes.empty()) {
+			throw_error(-ENOENT, "failed to request");
+		}
+
+		return mtimes;
+	}
+
+};
+
+int dnet_read_latest_complete(struct dnet_net_state *st, struct dnet_cmd *cmd, void *priv)
+{
+	struct dnet_read_latest_ctl *ctl = reinterpret_cast<dnet_read_latest_ctl*>(priv);
+	struct dnet_addr_attr *a;
+	struct dnet_file_info *fi;
+	int err = 0;
+
+	if (is_trans_destroyed(st, cmd)) {
+		boost::intrusive_ptr<dnet_read_latest_ctl> pctl(ctl, false);
+		return 0;
+	}
+
+	boost::intrusive_ptr<dnet_read_latest_ctl> pctl(ctl);
+
+	boost::mutex::scoped_lock l(pctl->mutex_);
+
+	err = cmd->status;
+	pctl->statuses_.push_back(err);
+
+	if (err || !cmd->size) {
+		pctl->cond_.notify_one();
+		return err;
+	}
+
+	if (cmd->size < sizeof(struct dnet_addr_attr) + sizeof(struct dnet_file_info)) {
+		pctl->cond_.notify_one();
+		return -EINVAL;
+	}
+
+	a = (struct dnet_addr_attr *)(cmd + 1);
+	fi = (struct dnet_file_info *)(a + 1);
+
+	dnet_convert_addr_attr(a);
+	dnet_convert_file_info(fi);
+
+	dnet_time mtime(fi->mtime);
+	uint32_t group_id = cmd->id.group_id;
+	pctl->mtimes.push_back(std::make_pair(group_id, mtime));
+
+	pctl->cond_.notify_one();
+
+	return err;
+}
+
 }
 
 std::vector<std::pair<int, dnet_time> >
@@ -440,14 +495,16 @@ EllipticsProxy::prepare_latest_impl(Key &key, std::vector<int> &groups)
 {
 	session elliptics_session(*elliptics_node_);
 	std::vector<int> lgroups = getGroups(key, groups);
-	std::string res;
+	boost::intrusive_ptr<dnet_read_latest_ctl> pctl(new dnet_read_latest_ctl(key));
+	std::vector<std::pair<int, dnet_time> > mtimes;
+	size_t count = 0;
+	int err = 0;
 
 	elliptics_session.set_cflags(DNET_ATTR_META_TIMES);
 
 	try {
 		key.transform(elliptics_session);
 
-		callback_any c;
 		dnet_id raw = key.id().dnet_id();
 		int count = 0;
 		std::vector<int> group(1, 0);
@@ -457,18 +514,21 @@ EllipticsProxy::prepare_latest_impl(Key &key, std::vector<int> &groups)
 			elliptics_session.set_groups(group);
 			raw.group_id = *g;
 
-			try {
-				elliptics_session.lookup(raw, c);
-			} catch (...) {}
-			count++;
+			++pctl->use_count_;
+			err = dnet_lookup_object(elliptics_session.get_native(), &raw, DNET_ATTR_META_TIMES, dnet_read_latest_complete, pctl.get());
+			if (!err) {
+				count++;
+			}
 		}
 
-		res = c.wait(count, 3);
+		mtimes = pctl->wait(count, 4);
 	} catch (std::exception &e) {
 		std::cerr << "Got exception " << e.what() << std::endl;
+		if (mtimes.empty())
+			throw;
 	}
 
-	return parse_latest(res);
+	return parse_latest(mtimes);
 }
 
 ReadResult

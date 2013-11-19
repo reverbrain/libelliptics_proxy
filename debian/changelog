@@ -1,3 +1,9 @@
+libelliptics-proxy (0.3.7-cocaine10) lucid; urgency=low
+
+  * Reworked prepare_latest
+
+ -- Artem Sokolov <derikon@yandex-team.ru>  Tue, 19 Nov 2013 20:08:34 +0400
+
 libelliptics-proxy (0.3.6-cocaine10) lucid; urgency=low
 
   * Hotfix: use timeouts for waiting of callbacks
