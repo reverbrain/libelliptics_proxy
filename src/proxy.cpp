@@ -403,14 +403,14 @@ parse_latest(std::vector<std::pair<int, dnet_time> > &mtimes)
 
 struct dnet_read_latest_ctl {
 
-	dnet_read_latest_ctl(Key &key) : key_(key), use_count_(0) {};
+	dnet_read_latest_ctl(Key &key) : key_(key), use_count_(0), replies_(0) {};
 
 	Key								key_;
 	boost::detail::atomic_count		use_count_;
+	boost::detail::atomic_count		replies_;
 	boost::mutex					mutex_;
 	boost::condition_variable		cond_;
 	std::vector<std::pair<int, dnet_time> > mtimes;
-	std::vector<int>				statuses_;
 
 	inline friend void intrusive_ptr_add_ref(dnet_read_latest_ctl *p)
     {
@@ -426,7 +426,7 @@ struct dnet_read_latest_ctl {
 		boost::system_time const timeout=boost::get_system_time() + boost::posix_time::seconds(wait_ts);
 
 		boost::mutex::scoped_lock lock(mutex_);
-		while (num != statuses_.size()) {
+		while (num != replies_) {
 			if (!cond_.timed_wait(lock, timeout)) {
 				if (mtimes.empty()) {
 					throw timeout_error("TIMEOUT prepare_latest for key " + key_.str());
@@ -453,6 +453,8 @@ int dnet_read_latest_complete(struct dnet_net_state *st, struct dnet_cmd *cmd, v
 
 	if (is_trans_destroyed(st, cmd)) {
 		boost::intrusive_ptr<dnet_read_latest_ctl> pctl(ctl, false);
+		++(pctl->replies_);
+		pctl->cond_.notify_all();
 		return 0;
 	}
 
@@ -461,15 +463,12 @@ int dnet_read_latest_complete(struct dnet_net_state *st, struct dnet_cmd *cmd, v
 	boost::mutex::scoped_lock l(pctl->mutex_);
 
 	err = cmd->status;
-	pctl->statuses_.push_back(err);
 
 	if (err || !cmd->size) {
-		pctl->cond_.notify_one();
 		return err;
 	}
 
 	if (cmd->size < sizeof(struct dnet_addr_attr) + sizeof(struct dnet_file_info)) {
-		pctl->cond_.notify_one();
 		return -EINVAL;
 	}
 
@@ -483,8 +482,6 @@ int dnet_read_latest_complete(struct dnet_net_state *st, struct dnet_cmd *cmd, v
 	uint32_t group_id = cmd->id.group_id;
 	pctl->mtimes.push_back(std::make_pair(group_id, mtime));
 
-	pctl->cond_.notify_one();
-
 	return err;
 }
 
@@ -497,7 +494,6 @@ EllipticsProxy::prepare_latest_impl(Key &key, std::vector<int> &groups)
 	std::vector<int> lgroups = getGroups(key, groups);
 	boost::intrusive_ptr<dnet_read_latest_ctl> pctl(new dnet_read_latest_ctl(key));
 	std::vector<std::pair<int, dnet_time> > mtimes;
-	size_t count = 0;
 	int err = 0;
 
 	elliptics_session.set_cflags(DNET_ATTR_META_TIMES);
@@ -506,7 +502,7 @@ EllipticsProxy::prepare_latest_impl(Key &key, std::vector<int> &groups)
 		key.transform(elliptics_session);
 
 		dnet_id raw = key.id().dnet_id();
-		int count = 0;
+		size_t count = 0;
 		std::vector<int> group(1, 0);
 
 		for (auto g = lgroups.begin(); g != lgroups.end(); ++g) {
@@ -516,9 +512,7 @@ EllipticsProxy::prepare_latest_impl(Key &key, std::vector<int> &groups)
 
 			++pctl->use_count_;
 			err = dnet_lookup_object(elliptics_session.get_native(), &raw, DNET_ATTR_META_TIMES, dnet_read_latest_complete, pctl.get());
-			if (!err) {
-				count++;
-			}
+			++count;
 		}
 
 		mtimes = pctl->wait(count, 4);

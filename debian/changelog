@@ -1,3 +1,9 @@
+libelliptics-proxy (0.3.7-cocaine11) lucid; urgency=low
+
+  * Fixed prepare_latest callback
+
+ -- Anton Kortunov <toshik@yandex-team.ru>  Tue, 19 Nov 2013 22:02:17 +0400
+
 libelliptics-proxy (0.3.7-cocaine10) lucid; urgency=low
 
   * Reworked prepare_latest
