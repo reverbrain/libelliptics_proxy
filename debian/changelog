@@ -1,4 +1,4 @@
-libelliptics-proxy (0.3.7-cocaine11) lucid; urgency=low
+libelliptics-proxy (0.3.8-cocaine10) lucid; urgency=low
 
   * Fixed prepare_latest callback
 
